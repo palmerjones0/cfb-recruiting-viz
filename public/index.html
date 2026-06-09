@@ -467,8 +467,20 @@
     @media (max-width: 600px) {
       #app-title { display: none; }
       .search-wrap { max-width: none; flex: 1; }
-      .legend-item span { display: none; }
+      .legend-item { display: none; }
       #hint { display: none; }
+
+      #info-bar { justify-content: flex-end; }
+
+      #recruit-count.tappable {
+        font-size: 14px;
+        font-weight: 600;
+        margin-left: 0;
+        padding: 5px 14px;
+        background: rgba(56, 139, 253, 0.15);
+        border: 1px solid rgba(56, 139, 253, 0.4);
+        border-radius: 16px;
+      }
     }
   </style>
 </head>
@@ -801,6 +813,10 @@ function selectSchool(school) {
     .select("circle.school-dot")
     .classed("selected", d => d.id === school.id);
   drawArcs(school, selectedYear);
+  // On mobile, auto-open the players panel after arcs start animating
+  if (window.innerWidth <= 600) {
+    setTimeout(openPlayersPanel, 350);
+  }
 }
 
 // ── School search ─────────────────────────────────────────
