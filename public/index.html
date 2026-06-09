@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CFB Recruiting Origins Map</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Controls bar ─────────────────────────────────────── */
+    #controls {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      background: rgba(13, 17, 23, 0.95);
+      border-bottom: 1px solid #30363d;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 52px;
+    }
+
+    #app-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #c9d1d9;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 320px;
+    }
+
+    #school-search {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      color: #e6edf3;
+      font-size: 13px;
+      outline: none;
+    }
+
+    #school-search:focus { border-color: #388bfd; }
+
+    #school-search::placeholder { color: #8b949e; }
+
+    #school-list {
+      position: fixed;
+      z-index: 30;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow-y: auto;
+      max-height: 260px;
+      min-width: 220px;
+      display: none;
+      box-shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
+    }
+
+    .school-option {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .school-option:last-child { border-bottom: none; }
+
+    .school-option:hover { background: #21262d; }
+
+    .school-conf {
+      font-size: 11px;
+      color: #8b949e;
+      margin-left: 6px;
+    }
+
+    #year-select {
+      padding: 6px 10px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      color: #e6edf3;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #year-select:focus { border-color: #388bfd; }
+
+    /* ── Map ──────────────────────────────────────────────── */
+    #map-container {
+      position: fixed;
+      top: 52px; left: 0; right: 0; bottom: 36px;
+    }
+
+    svg#map {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    svg#map:active { cursor: grabbing; }
+
+    .state {
+      fill: #161b22;
+      stroke: #30363d;
+      stroke-width: 0.5;
+    }
+
+    .school-dot {
+      fill: #484f58;
+      stroke: #8b949e;
+      stroke-width: 0.8;
+      cursor: pointer;
+      transition: fill 0.15s, r 0.15s;
+    }
+
+    .school-dot:hover { fill: #8b949e; }
+
+    .school-dot.selected { fill: #f0f6fc; stroke: #f0f6fc; }
+
+    .recruit-arc {
+      fill: none;
+      stroke-width: 1.2;
+      opacity: 0.55;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .recruit-arc:hover { opacity: 1; stroke-width: 2; }
+
+    .recruit-dot { opacity: 0.65; cursor: pointer; }
+
+    .recruit-dot:hover { opacity: 1; }
+
+    /* ── Tooltip ──────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      display: none;
+      z-index: 40;
+      max-width: 220px;
+    }
+
+    #tooltip strong { color: #f0f6fc; font-size: 13px; }
+
+    .stars-gold { color: #d29922; }
+    .stars-blue { color: #388bfd; }
+    .stars-green { color: #3fb950; }
+    .stars-gray { color: #8b949e; }
+
+    /* ── Info bar ─────────────────────────────────────────── */
+    #info-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 36px;
+      background: rgba(13, 17, 23, 0.95);
+      border-top: 1px solid #30363d;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    #recruit-count { margin-left: auto; }
+
+    #hint { font-style: italic; }
+
+    /* ── Mobile ───────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      #app-title { display: none; }
+      .search-wrap { max-width: none; flex: 1; }
+      .legend-item span { display: none; }
+      #hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <span id="app-title">CFB Recruiting Origins</span>
+  <div class="search-wrap">
+    <input type="text" id="school-search" placeholder="Search for a school…" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="school-list"></div>
+  <select id="year-select">
+    <option value="all">All Years</option>
+  </select>
+</div>
+
+<div id="map-container">
+  <svg id="map"></svg>
+</div>
+
+<div id="tooltip"></div>
+
+<div id="info-bar">
+  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div><span>5★</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#388bfd"></div><span>4★</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div><span>3★</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div><span>2★</span></div>
+  <span id="hint">Click a school dot or search to explore</span>
+  <span id="recruit-count"></span>
+</div>
+
+<script>
+"use strict";
+
+const STAR_COLOR = {
+  5: "#d29922",
+  4: "#388bfd",
+  3: "#3fb950",
+  2: "#8b949e",
+  1: "#8b949e",
+  0: "#8b949e",
+};
+
+const STAR_CLASS = {
+  5: "stars-gold",
+  4: "stars-blue",
+  3: "stars-green",
+  2: "stars-gray",
+  1: "stars-gray",
+  0: "stars-gray",
+};
+
+// ── State ─────────────────────────────────────────────────
+let selectedSchool = null;
+let selectedYear = "all";
+let allRecruits = [];
+let schoolMap = {};
+let stateFeatures = null;
+let projection, pathGen;
+
+// ── DOM refs ──────────────────────────────────────────────
+const svg = d3.select("#map");
+const mapContainer = document.getElementById("map-container");
+const tooltip = document.getElementById("tooltip");
+const recruitCount = document.getElementById("recruit-count");
+const hint = document.getElementById("hint");
+const schoolSearch = document.getElementById("school-search");
+const schoolListEl = document.getElementById("school-list");
+const yearSelect = document.getElementById("year-select");
+
+// ── SVG layer structure ───────────────────────────────────
+const zoomLayer = svg.append("g").attr("class", "zoom-layer");
+const baseLayer = zoomLayer.append("g").attr("class", "base-layer");
+const schoolLayer = zoomLayer.append("g").attr("class", "school-layer");
+let arcLayer = zoomLayer.append("g").attr("class", "arc-layer");
+
+// ── Zoom ──────────────────────────────────────────────────
+const zoom = d3.zoom()
+  .scaleExtent([1, 10])
+  .on("zoom", ({ transform }) => {
+    zoomLayer.attr("transform", transform);
+  });
+svg.call(zoom);
+
+// Double-tap/click to reset zoom
+svg.on("dblclick.zoom", null);
+svg.on("dblclick", () => {
+  svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+});
+
+// ── Projection ────────────────────────────────────────────
+function buildProjection(w, h, features) {
+  return d3.geoAlbersUsa().fitSize([w, h], features);
+}
+
+function getSize() {
+  return [mapContainer.clientWidth, mapContainer.clientHeight];
+}
+
+// ── Arcs ──────────────────────────────────────────────────
+function arcPath(sx, sy, tx, ty) {
+  const dx = tx - sx, dy = ty - sy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const curveOffset = len * 0.22;
+  const cx = (sx + tx) / 2 - (dy / len) * curveOffset;
+  const cy = (sy + ty) / 2 + (dx / len) * curveOffset;
+  return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
+}
+
+// ── Tooltip ───────────────────────────────────────────────
+function showTooltip(event, recruit) {
+  const stars = recruit.stars || 0;
+  const starStr = "★".repeat(stars) + "☆".repeat(Math.max(0, 5 - stars));
+  tooltip.innerHTML =
+    `<strong>${recruit.name}</strong><br>` +
+    `<span class="${STAR_CLASS[stars]}">${starStr}</span> ${recruit.position}<br>` +
+    `${recruit.hometown_city}, ${recruit.hometown_state} (${recruit.year})`;
+  tooltip.style.display = "block";
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  const x = event.clientX ?? event.touches?.[0]?.clientX ?? 0;
+  const y = event.clientY ?? event.touches?.[0]?.clientY ?? 0;
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  tooltip.style.left = Math.min(x + 14, window.innerWidth - tw - 6) + "px";
+  tooltip.style.top = Math.min(y + 14, window.innerHeight - th - 6) + "px";
+}
+
+function hideTooltip() {
+  tooltip.style.display = "none";
+}
+
+// ── Draw arcs for selected school ─────────────────────────
+function drawArcs(school, year) {
+  arcLayer.remove();
+  arcLayer = zoomLayer.insert("g", ".school-layer + *").attr("class", "arc-layer");
+
+  if (!school) {
+    recruitCount.textContent = "";
+    hint.style.display = "";
+    return;
+  }
+
+  hint.style.display = "none";
+
+  let recruits = allRecruits.filter(r => r.school_id === school.id);
+  if (year !== "all") recruits = recruits.filter(r => r.year === +year);
+
+  const schoolPt = projection([school.lng, school.lat]);
+  if (!schoolPt) {
+    recruitCount.textContent = "School location unavailable";
+    return;
+  }
+
+  recruitCount.textContent = `${recruits.length} recruit${recruits.length !== 1 ? "s" : ""}`;
+
+  const dotGroup = arcLayer.append("g");
+  const arcGroup = arcLayer.append("g");
+
+  recruits.forEach((r, i) => {
+    const homePt = projection([r.lng, r.lat]);
+    if (!homePt) return;
+
+    const color = STAR_COLOR[r.stars] || STAR_COLOR[0];
+
+    // Arc
+    const arcEl = arcGroup.append("path")
+      .attr("class", "recruit-arc")
+      .attr("d", arcPath(homePt[0], homePt[1], schoolPt[0], schoolPt[1]))
+      .attr("stroke", color)
+      .on("mousemove", (ev) => { showTooltip(ev, r); moveTooltip(ev); })
+      .on("touchmove", (ev) => { showTooltip(ev, r); moveTooltip(ev); ev.preventDefault(); })
+      .on("mouseleave touchend", hideTooltip);
+
+    const totalLength = arcEl.node().getTotalLength();
+    arcEl
+      .style("stroke-dasharray", `${totalLength} ${totalLength}`)
+      .style("stroke-dashoffset", totalLength)
+      .transition()
+      .duration(400)
+      .delay(Math.min(i * 5, 600))
+      .ease(d3.easeQuadOut)
+      .style("stroke-dashoffset", 0);
+
+    // Hometown dot
+    dotGroup.append("circle")
+      .attr("class", "recruit-dot")
+      .attr("cx", homePt[0])
+      .attr("cy", homePt[1])
+      .attr("r", 3.5)
+      .attr("fill", color)
+      .on("mousemove", (ev) => { showTooltip(ev, r); moveTooltip(ev); })
+      .on("touchmove", (ev) => { showTooltip(ev, r); moveTooltip(ev); ev.preventDefault(); })
+      .on("mouseleave touchend", hideTooltip);
+  });
+}
+
+// ── Select school ─────────────────────────────────────────
+function selectSchool(school) {
+  selectedSchool = school;
+  schoolLayer.selectAll("circle.school-dot")
+    .classed("selected", d => d.id === school.id);
+  drawArcs(school, selectedYear);
+}
+
+// ── School search ─────────────────────────────────────────
+function renderSchoolList(schools, query) {
+  const matches = schools
+    .filter(s =>
+      s.name.toLowerCase().includes(query) ||
+      s.abbreviation.toLowerCase().includes(query)
+    )
+    .slice(0, 12);
+
+  if (!matches.length) { schoolListEl.style.display = "none"; return; }
+
+  const rect = schoolSearch.getBoundingClientRect();
+  schoolListEl.style.top = (rect.bottom + 4) + "px";
+  schoolListEl.style.left = rect.left + "px";
+  schoolListEl.style.width = Math.max(rect.width, 240) + "px";
+  schoolListEl.style.display = "block";
+  schoolListEl.innerHTML = matches
+    .map(s => `<div class="school-option" data-id="${s.id}">${s.name}<span class="school-conf">${s.conference}</span></div>`)
+    .join("");
+
+  schoolListEl.querySelectorAll(".school-option").forEach(el => {
+    el.addEventListener("click", () => {
+      const school = schoolMap[el.dataset.id];
+      if (school) {
+        schoolSearch.value = school.name;
+        schoolListEl.style.display = "none";
+        selectSchool(school);
+      }
+    });
+  });
+}
+
+// ── Resize ────────────────────────────────────────────────
+function handleResize() {
+  if (!stateFeatures) return;
+  const [w, h] = getSize();
+  svg.call(zoom.transform, d3.zoomIdentity);
+  projection = buildProjection(w, h, stateFeatures);
+  pathGen = d3.geoPath().projection(projection);
+
+  baseLayer.selectAll("path.state").attr("d", pathGen);
+  schoolLayer.selectAll("circle.school-dot")
+    .attr("cx", d => (projection([d.lng, d.lat]) ?? [-999])[0])
+    .attr("cy", d => (projection([d.lng, d.lat]) ?? [0, -999])[1]);
+
+  if (selectedSchool) drawArcs(selectedSchool, selectedYear);
+}
+
+// ── Bootstrap ─────────────────────────────────────────────
+Promise.all([
+  d3.json("schools.json"),
+  d3.json("recruits.json"),
+  d3.json("us-states.topojson"),
+]).then(([schools, recruits, us]) => {
+  allRecruits = recruits;
+  schools.forEach(s => { schoolMap[s.id] = s; });
+
+  stateFeatures = topojson.feature(us, us.objects.states);
+
+  const [w, h] = getSize();
+  projection = buildProjection(w, h, stateFeatures);
+  pathGen = d3.geoPath().projection(projection);
+
+  // States
+  baseLayer.selectAll("path.state")
+    .data(stateFeatures.features)
+    .join("path")
+    .attr("class", "state")
+    .attr("d", pathGen);
+
+  // School dots
+  schoolLayer.selectAll("circle.school-dot")
+    .data(schools)
+    .join("circle")
+    .attr("class", "school-dot")
+    .attr("r", 5)
+    .attr("cx", d => (projection([d.lng, d.lat]) ?? [-999])[0])
+    .attr("cy", d => (projection([d.lng, d.lat]) ?? [0, -999])[1])
+    .on("click", (ev, d) => {
+      schoolSearch.value = d.name;
+      schoolListEl.style.display = "none";
+      selectSchool(d);
+    })
+    .append("title").text(d => d.name);
+
+  // Year select
+  const years = [...new Set(recruits.map(r => r.year))].sort((a, b) => b - a);
+  years.forEach(y => {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = `${y} Class`;
+    yearSelect.appendChild(opt);
+  });
+
+  yearSelect.addEventListener("change", () => {
+    selectedYear = yearSelect.value;
+    if (selectedSchool) drawArcs(selectedSchool, selectedYear);
+  });
+
+  // Search input
+  schoolSearch.addEventListener("input", () => {
+    const q = schoolSearch.value.toLowerCase().trim();
+    if (!q) { schoolListEl.style.display = "none"; return; }
+    renderSchoolList(schools, q);
+  });
+
+  schoolSearch.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") schoolListEl.style.display = "none";
+  });
+
+  document.addEventListener("click", (ev) => {
+    if (!schoolSearch.contains(ev.target) && !schoolListEl.contains(ev.target)) {
+      schoolListEl.style.display = "none";
+    }
+  });
+
+  window.addEventListener("resize", handleResize);
+});
+</script>
+
+</body>
+</html>
