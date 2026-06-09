@@ -201,8 +201,109 @@
     }
 
     #recruit-count { margin-left: auto; }
+    #recruit-count.tappable { cursor: pointer; color: #388bfd; }
+    #recruit-count.tappable:hover { color: #58a6ff; }
 
     #hint { font-style: italic; }
+
+    /* ── Players panel ────────────────────────────────────── */
+    #players-panel {
+      position: fixed;
+      left: 0; right: 0; bottom: 36px;
+      max-height: 65vh;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      border-radius: 12px 12px 0 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.25s ease;
+      box-shadow: 0 -4px 24px rgba(1, 4, 9, 0.6);
+    }
+    #players-panel.open { transform: translateY(0); }
+
+    #players-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #21262d;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    #players-title {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f0f6fc;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #players-close {
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    #players-close:hover { color: #f0f6fc; }
+
+    #players-list {
+      overflow-y: auto;
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      padding: 9px 16px;
+      border-bottom: 1px solid #21262d;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .player-row:last-child { border-bottom: none; }
+
+    .player-star-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .player-name-pos {
+      flex: 1.5;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .player-name {
+      color: #e6edf3;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .player-pos { color: #8b949e; font-size: 11px; flex-shrink: 0; }
+
+    .player-hometown {
+      flex: 1;
+      color: #8b949e;
+      font-size: 12px;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .player-year { color: #8b949e; font-size: 12px; flex-shrink: 0; }
 
     /* ── Mobile ───────────────────────────────────────────── */
     @media (max-width: 600px) {
@@ -231,6 +332,14 @@
 </div>
 
 <div id="tooltip"></div>
+
+<div id="players-panel">
+  <div id="players-header">
+    <span id="players-title"></span>
+    <button id="players-close" aria-label="Close">✕</button>
+  </div>
+  <div id="players-list"></div>
+</div>
 
 <div id="info-bar">
   <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div><span>5★</span></div>
@@ -281,6 +390,10 @@ const hint = document.getElementById("hint");
 const schoolSearch = document.getElementById("school-search");
 const schoolListEl = document.getElementById("school-list");
 const yearSelect = document.getElementById("year-select");
+const playersPanel = document.getElementById("players-panel");
+const playersTitle = document.getElementById("players-title");
+const playersList = document.getElementById("players-list");
+document.getElementById("players-close").addEventListener("click", closePlayersPanel);
 
 // ── SVG layer structure ───────────────────────────────────
 const zoomLayer = svg.append("g").attr("class", "zoom-layer");
@@ -289,10 +402,19 @@ const schoolLayer = zoomLayer.append("g").attr("class", "school-layer");
 let arcLayer = zoomLayer.append("g").attr("class", "arc-layer");
 
 // ── Zoom ──────────────────────────────────────────────────
+let currentZoom = 1;
 const zoom = d3.zoom()
   .scaleExtent([1, 10])
   .on("zoom", ({ transform }) => {
     zoomLayer.attr("transform", transform);
+    // Scale hit circles inversely so they stay a constant screen size.
+    // Visible dots grow naturally with zoom — that's fine and helpful.
+    const k = transform.k;
+    if (k !== currentZoom) {
+      currentZoom = k;
+      const r = hitRadius() / k;
+      schoolLayer.selectAll("circle.school-hit").attr("r", r);
+    }
   });
 svg.call(zoom);
 
@@ -301,6 +423,39 @@ svg.on("dblclick.zoom", null);
 svg.on("dblclick", () => {
   svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
 });
+
+// ── Players panel ─────────────────────────────────────────
+function openPlayersPanel() {
+  renderPlayersPanel();
+  playersPanel.classList.add("open");
+}
+
+function closePlayersPanel() {
+  playersPanel.classList.remove("open");
+}
+
+function renderPlayersPanel() {
+  if (!selectedSchool) return;
+  let recruits = allRecruits.filter(r => r.school_id === selectedSchool.id);
+  if (selectedYear !== "all") recruits = recruits.filter(r => r.year === +selectedYear);
+  recruits.sort((a, b) => (b.stars || 0) - (a.stars || 0) || b.year - a.year);
+
+  const yearLabel = selectedYear === "all" ? "All Years" : `${selectedYear} Class`;
+  playersTitle.textContent = `${selectedSchool.name} · ${recruits.length} recruit${recruits.length !== 1 ? "s" : ""} (${yearLabel})`;
+
+  playersList.innerHTML = recruits.map(r => {
+    const color = STAR_COLOR[r.stars] || STAR_COLOR[0];
+    return `<div class="player-row">
+      <div class="player-star-dot" style="background:${color}"></div>
+      <div class="player-name-pos">
+        <span class="player-name">${r.name}</span>
+        <span class="player-pos">${r.position}</span>
+      </div>
+      <div class="player-hometown">${r.hometown_city}, ${r.hometown_state}</div>
+      <span class="player-year">${r.year}</span>
+    </div>`;
+  }).join("");
+}
 
 // ── Dynamic sizing ────────────────────────────────────────
 function dotRadius() {
@@ -393,6 +548,8 @@ function drawArcs(school, year) {
 
   if (!school) {
     recruitCount.textContent = "";
+    recruitCount.classList.remove("tappable");
+    closePlayersPanel();
     hint.style.display = "";
     return;
   }
@@ -408,7 +565,9 @@ function drawArcs(school, year) {
     return;
   }
 
-  recruitCount.textContent = `${recruits.length} recruit${recruits.length !== 1 ? "s" : ""}`;
+  recruitCount.textContent = `${recruits.length} recruit${recruits.length !== 1 ? "s" : ""} ▸`;
+  recruitCount.classList.add("tappable");
+  if (playersPanel.classList.contains("open")) renderPlayersPanel();
 
   const arcGroup = arcLayer.append("g");
   const dotGroup = arcLayer.append("g");
@@ -454,6 +613,7 @@ function drawArcs(school, year) {
 // ── Select school ─────────────────────────────────────────
 function selectSchool(school) {
   selectedSchool = school;
+  closePlayersPanel();
   schoolLayer.selectAll("g.school-group")
     .select("circle.school-dot")
     .classed("selected", d => d.id === school.id);
@@ -581,6 +741,10 @@ Promise.all([
     if (selectedSchool) drawArcs(selectedSchool, selectedYear);
   });
 
+  recruitCount.addEventListener("click", () => {
+    if (selectedSchool) openPlayersPanel();
+  });
+
   // Search input
   schoolSearch.addEventListener("input", () => {
     const q = schoolSearch.value.toLowerCase().trim();
@@ -596,6 +760,15 @@ Promise.all([
     if (!schoolSearch.contains(ev.target) && !schoolListEl.contains(ev.target)) {
       schoolListEl.style.display = "none";
     }
+    if (playersPanel.classList.contains("open") &&
+        !playersPanel.contains(ev.target) &&
+        ev.target !== recruitCount) {
+      closePlayersPanel();
+    }
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") { schoolListEl.style.display = "none"; closePlayersPanel(); }
   });
 
   let resizeTimer;
