@@ -463,10 +463,11 @@ function handleResize() {
 }
 
 // ── Bootstrap ─────────────────────────────────────────────
+const CDN = "https://cdn.jsdelivr.net/gh/palmerjones0/cfb-recruiting-viz@main/public";
 Promise.all([
-  d3.json("schools.json"),
-  d3.json("recruits.json"),
-  d3.json("us-states.topojson"),
+  d3.json(`${CDN}/schools.json`),
+  d3.json(`${CDN}/recruits.json`),
+  d3.json(`${CDN}/us-states.topojson`),
 ]).then(([schools, recruits, us]) => {
   allRecruits = recruits;
   schools.forEach(s => { schoolMap[s.id] = s; });
@@ -538,7 +539,7 @@ Promise.all([
 }).catch(err => {
   console.error("Failed to load map data:", err);
   document.getElementById("map-container").innerHTML =
-    `<p style="color:#ff7b72;padding:20px;font-size:14px">Failed to load map data. Make sure schools.json and recruits.json are in the public/ directory.</p>`;
+    `<p style="color:#ff7b72;padding:20px;font-size:14px">Failed to load map data. Data may still be loading — try refreshing in a moment.</p>`;
 });
 </script>
 
