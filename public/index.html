@@ -621,6 +621,7 @@ svg.on("dblclick", () => {
 
 // ── Players panel ─────────────────────────────────────────
 function openPlayersPanel() {
+  document.getElementById("feedback-panel").classList.remove("open");
   renderPlayersPanel();
   playersPanel.classList.add("open");
 }
@@ -736,6 +737,37 @@ function hideTooltip() {
   tooltip.style.display = "none";
 }
 
+// ── Zoom to fit all recruit hometowns ─────────────────────
+function zoomToFitRecruits(school, recruits) {
+  const [w, h] = getSize();
+  const pad = 50;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+
+  function expand(pt) {
+    if (!pt) return;
+    if (pt[0] < x0) x0 = pt[0];
+    if (pt[0] > x1) x1 = pt[0];
+    if (pt[1] < y0) y0 = pt[1];
+    if (pt[1] > y1) y1 = pt[1];
+  }
+
+  expand(jitteredPositions[school.id] ?? projection([school.lng, school.lat]));
+  recruits.forEach(r => expand(projection([r.lng, r.lat])));
+
+  if (!isFinite(x0)) return;
+
+  const scale = Math.min(
+    (w - pad * 2) / Math.max(x1 - x0, 1),
+    (h - pad * 2) / Math.max(y1 - y0, 1),
+    8
+  );
+  const tx = w / 2 - scale * (x0 + x1) / 2;
+  const ty = h / 2 - scale * (y0 + y1) / 2;
+
+  svg.transition().duration(650).ease(d3.easeCubicInOut)
+    .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
 // ── Draw arcs for selected school ─────────────────────────
 function drawArcs(school, year) {
   arcLayer.remove();
@@ -803,6 +835,8 @@ function drawArcs(school, year) {
       .on("touchmove", (ev) => { showTooltip(ev, r); moveTooltip(ev); ev.preventDefault(); })
       .on("mouseleave touchend", hideTooltip);
   });
+
+  zoomToFitRecruits(school, recruits);
 }
 
 // ── Select school ─────────────────────────────────────────
@@ -813,10 +847,6 @@ function selectSchool(school) {
     .select("circle.school-dot")
     .classed("selected", d => d.id === school.id);
   drawArcs(school, selectedYear);
-  // On mobile, auto-open the players panel after arcs start animating
-  if (window.innerWidth <= 600) {
-    setTimeout(openPlayersPanel, 350);
-  }
 }
 
 // ── School search ─────────────────────────────────────────
@@ -894,7 +924,7 @@ const FEEDBACK_WORKER = "https://cfb-feedback-worker.palmerjones0.workers.dev";
     selectedType = b.dataset.type;
   }));
 
-  function openFeedback() { panel.classList.add("open"); desc.focus(); }
+  function openFeedback() { closePlayersPanel(); panel.classList.add("open"); desc.focus(); }
   function closeFeedback() {
     panel.classList.remove("open");
     status.textContent = "";
