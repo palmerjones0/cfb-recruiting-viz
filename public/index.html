@@ -325,6 +325,7 @@ function showTooltip(event, recruit) {
     `<span class="${STAR_CLASS[stars]}">${starStr}</span> ${recruit.position}<br>` +
     `${recruit.hometown_city}, ${recruit.hometown_state} (${recruit.year})`;
   tooltip.style.display = "block";
+  void tooltip.offsetWidth; // force layout so offsetWidth/Height are current
   moveTooltip(event);
 }
 
@@ -332,8 +333,8 @@ function moveTooltip(event) {
   const x = event.clientX ?? event.touches?.[0]?.clientX ?? 0;
   const y = event.clientY ?? event.touches?.[0]?.clientY ?? 0;
   const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-  tooltip.style.left = Math.min(x + 14, window.innerWidth - tw - 6) + "px";
-  tooltip.style.top = Math.min(y + 14, window.innerHeight - th - 6) + "px";
+  tooltip.style.left = Math.max(6, Math.min(x + 14, window.innerWidth - tw - 6)) + "px";
+  tooltip.style.top = Math.max(58, Math.min(y + 14, window.innerHeight - th - 6)) + "px";
 }
 
 function hideTooltip() {
@@ -343,7 +344,7 @@ function hideTooltip() {
 // ── Draw arcs for selected school ─────────────────────────
 function drawArcs(school, year) {
   arcLayer.remove();
-  arcLayer = zoomLayer.insert("g", ".school-layer + *").attr("class", "arc-layer");
+  arcLayer = zoomLayer.insert("g", ".school-layer").attr("class", "arc-layer");
 
   if (!school) {
     recruitCount.textContent = "";
@@ -364,8 +365,8 @@ function drawArcs(school, year) {
 
   recruitCount.textContent = `${recruits.length} recruit${recruits.length !== 1 ? "s" : ""}`;
 
-  const dotGroup = arcLayer.append("g");
   const arcGroup = arcLayer.append("g");
+  const dotGroup = arcLayer.append("g");
 
   recruits.forEach((r, i) => {
     const homePt = projection([r.lng, r.lat]);
@@ -529,7 +530,15 @@ Promise.all([
     }
   });
 
-  window.addEventListener("resize", handleResize);
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 150);
+  });
+}).catch(err => {
+  console.error("Failed to load map data:", err);
+  document.getElementById("map-container").innerHTML =
+    `<p style="color:#ff7b72;padding:20px;font-size:14px">Failed to load map data. Make sure schools.json and recruits.json are in the public/ directory.</p>`;
 });
 </script>
 
