@@ -305,6 +305,154 @@
     }
     .player-year { color: #8b949e; font-size: 12px; flex-shrink: 0; }
 
+    /* ── Feedback button ──────────────────────────────────── */
+    #feedback-btn {
+      position: fixed;
+      bottom: 44px;
+      right: 14px;
+      z-index: 45;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      color: #8b949e;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 5px 10px 5px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    #feedback-btn:hover { background: #30363d; color: #e6edf3; }
+
+    /* ── Feedback form panel ──────────────────────────────── */
+    #feedback-panel {
+      position: fixed;
+      left: 0; right: 0; bottom: 36px;
+      max-height: 70vh;
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      border-radius: 12px 12px 0 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.25s ease;
+      box-shadow: 0 -4px 24px rgba(1, 4, 9, 0.6);
+    }
+    #feedback-panel.open { transform: translateY(0); }
+
+    #feedback-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #21262d;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    #feedback-header span {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f0f6fc;
+    }
+    #feedback-close {
+      background: none; border: none;
+      color: #8b949e; font-size: 18px;
+      cursor: pointer; padding: 0 2px; line-height: 1;
+    }
+    #feedback-close:hover { color: #f0f6fc; }
+
+    #feedback-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .fb-type-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .fb-type-btn {
+      flex: 1;
+      padding: 6px 4px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+      color: #8b949e;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .fb-type-btn.active {
+      border-color: #388bfd;
+      background: rgba(56, 139, 253, 0.1);
+      color: #58a6ff;
+    }
+
+    #feedback-desc {
+      width: 100%;
+      min-height: 90px;
+      padding: 8px 10px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+      color: #e6edf3;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      margin-bottom: 10px;
+    }
+    #feedback-desc:focus { border-color: #388bfd; }
+    #feedback-desc::placeholder { color: #8b949e; }
+
+    #feedback-email {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+      color: #e6edf3;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 14px;
+    }
+    #feedback-email:focus { border-color: #388bfd; }
+    #feedback-email::placeholder { color: #8b949e; }
+
+    #feedback-submit {
+      width: 100%;
+      padding: 8px;
+      background: #238636;
+      border: 1px solid #2ea043;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #feedback-submit:hover:not(:disabled) { background: #2ea043; }
+    #feedback-submit:disabled { opacity: 0.5; cursor: default; }
+
+    #feedback-status {
+      margin-top: 10px;
+      font-size: 12px;
+      text-align: center;
+      min-height: 18px;
+    }
+    #feedback-status.ok  { color: #3fb950; }
+    #feedback-status.err { color: #ff7b72; }
+
     /* ── Mobile ───────────────────────────────────────────── */
     @media (max-width: 600px) {
       #app-title { display: none; }
@@ -332,6 +480,31 @@
 </div>
 
 <div id="tooltip"></div>
+
+<button id="feedback-btn" aria-label="Leave feedback">
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Z"/>
+  </svg>
+  Feedback
+</button>
+
+<div id="feedback-panel">
+  <div id="feedback-header">
+    <span>Share feedback</span>
+    <button id="feedback-close" aria-label="Close">✕</button>
+  </div>
+  <div id="feedback-body">
+    <div class="fb-type-row">
+      <button class="fb-type-btn active" data-type="Suggestion">💡 Suggestion</button>
+      <button class="fb-type-btn" data-type="Bug">🐛 Bug</button>
+      <button class="fb-type-btn" data-type="Data">📊 Data issue</button>
+    </div>
+    <textarea id="feedback-desc" placeholder="Describe what you'd like to see changed or fixed…" maxlength="1000"></textarea>
+    <input type="email" id="feedback-email" placeholder="Email (optional, if you'd like a reply)">
+    <button id="feedback-submit">Submit feedback</button>
+    <div id="feedback-status"></div>
+  </div>
+</div>
 
 <div id="players-panel">
   <div id="players-header">
@@ -674,6 +847,86 @@ function handleResize() {
 
   if (selectedSchool) drawArcs(selectedSchool, selectedYear);
 }
+
+// ── Feedback form ─────────────────────────────────────────
+const FEEDBACK_WORKER = "https://cfb-feedback-worker.palmerjones0.workers.dev";
+
+(function initFeedback() {
+  const panel    = document.getElementById("feedback-panel");
+  const btn      = document.getElementById("feedback-btn");
+  const closeBtn = document.getElementById("feedback-close");
+  const desc     = document.getElementById("feedback-desc");
+  const emailEl  = document.getElementById("feedback-email");
+  const submit   = document.getElementById("feedback-submit");
+  const status   = document.getElementById("feedback-status");
+  const typeBtns = document.querySelectorAll(".fb-type-btn");
+  let selectedType = "Suggestion";
+
+  typeBtns.forEach(b => b.addEventListener("click", () => {
+    typeBtns.forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    selectedType = b.dataset.type;
+  }));
+
+  function openFeedback() { panel.classList.add("open"); desc.focus(); }
+  function closeFeedback() {
+    panel.classList.remove("open");
+    status.textContent = "";
+    status.className = "feedback-status";
+  }
+
+  btn.addEventListener("click", openFeedback);
+  closeBtn.addEventListener("click", closeFeedback);
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") closeFeedback();
+  });
+  panel.addEventListener("click", (ev) => { ev.stopPropagation(); });
+
+  submit.addEventListener("click", async () => {
+    const text = desc.value.trim();
+    if (text.length < 5) {
+      status.textContent = "Please add a bit more detail.";
+      status.className = "err";
+      return;
+    }
+    submit.disabled = true;
+    status.textContent = "Submitting…";
+    status.className = "";
+
+    try {
+      const resp = await fetch(FEEDBACK_WORKER, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: selectedType,
+          description: text,
+          email: emailEl.value.trim() || null,
+          school: selectedSchool?.name || null,
+          year: selectedYear !== "all" ? selectedYear : null,
+          ua: navigator.userAgent,
+          viewport: `${window.innerWidth}×${window.innerHeight}`,
+        }),
+      });
+
+      if (resp.ok) {
+        const { number } = await resp.json();
+        status.textContent = `Thanks! Logged as #${number}.`;
+        status.className = "ok";
+        desc.value = "";
+        emailEl.value = "";
+        setTimeout(closeFeedback, 2200);
+      } else {
+        status.textContent = "Something went wrong — try again.";
+        status.className = "err";
+        submit.disabled = false;
+      }
+    } catch {
+      status.textContent = "Network error — try again.";
+      status.className = "err";
+      submit.disabled = false;
+    }
+  });
+})();
 
 // ── Bootstrap ─────────────────────────────────────────────
 const CDN = "https://cdn.jsdelivr.net/gh/palmerjones0/cfb-recruiting-viz@main/public";
