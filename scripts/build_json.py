@@ -22,15 +22,18 @@ def load_raw_recruits():
 def build_schools_json(raw_teams):
     schools = []
     for t in raw_teams:
+        school_name = t.get("school")
+        if not school_name:
+            continue
         loc = t.get("location") or {}
         lat = loc.get("latitude")
         lng = loc.get("longitude")
         if lat is None or lng is None:
-            print(f"Warning: no location for {t.get('school', '?')}, skipping")
+            print(f"Warning: no location for {school_name}, skipping")
             continue
         schools.append({
-            "id": t["school"],
-            "name": t["school"],
+            "id": school_name,
+            "name": school_name,
             "abbreviation": t.get("abbreviation", ""),
             "conference": t.get("conference", ""),
             "lat": lat,

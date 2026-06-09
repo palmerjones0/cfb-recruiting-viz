@@ -46,6 +46,16 @@ class TestBuildSchools(unittest.TestCase):
         schools = build_schools_json(teams)
         self.assertEqual(len(schools), 0)
 
+    def test_school_missing_name_dropped(self):
+        teams = [{"location": {"latitude": 33.0, "longitude": -87.0}}]
+        schools = build_schools_json(teams)
+        self.assertEqual(len(schools), 0)
+
+    def test_school_none_location_dropped(self):
+        teams = [{"school": "Test U", "location": None}]
+        schools = build_schools_json(teams)
+        self.assertEqual(len(schools), 0)
+
 
 class TestBuildRecruits(unittest.TestCase):
     def _run(self, overrides=None, school_ids=None):
