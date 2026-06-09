@@ -122,17 +122,20 @@
       stroke-width: 0.5;
     }
 
+    .school-group { cursor: pointer; }
+
     .school-dot {
       fill: #484f58;
       stroke: #8b949e;
       stroke-width: 0.8;
-      cursor: pointer;
-      transition: fill 0.15s, r 0.15s;
+      transition: fill 0.15s;
     }
 
-    .school-dot:hover { fill: #8b949e; }
+    .school-group:hover .school-dot { fill: #8b949e; }
 
     .school-dot.selected { fill: #f0f6fc; stroke: #f0f6fc; }
+
+    .school-hit { pointer-events: all; }
 
     .recruit-arc {
       fill: none;
@@ -264,6 +267,8 @@ let selectedSchool = null;
 let selectedYear = "all";
 let allRecruits = [];
 let schoolMap = {};
+let schoolsList = [];
+let jitteredPositions = {};
 let stateFeatures = null;
 let projection, pathGen;
 
@@ -296,6 +301,46 @@ svg.on("dblclick.zoom", null);
 svg.on("dblclick", () => {
   svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
 });
+
+// ── Dynamic sizing ────────────────────────────────────────
+function dotRadius() {
+  return Math.max(2.5, Math.min(5, getSize()[0] / 180));
+}
+function hitRadius() {
+  return Math.max(dotRadius() * 2.5, 14);
+}
+function recruitDotRadius() {
+  return Math.max(1.5, Math.min(3.5, getSize()[0] / 250));
+}
+
+// Push overlapping school dots apart so dense clusters are distinguishable.
+// Runs offline (no animation) and stores adjusted pixel positions.
+function computeJitteredPositions(schools) {
+  const minDist = dotRadius() * 2 + 1.5;
+  const nodes = schools.map(s => {
+    const pt = projection([s.lng, s.lat]) ?? [-9999, -9999];
+    return { id: s.id, x: pt[0], y: pt[1] };
+  });
+  for (let iter = 0; iter < 60; iter++) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[j].x - nodes[i].x;
+        const dy = nodes[j].y - nodes[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+        if (dist < minDist) {
+          const push = (minDist - dist) / 2;
+          const nx = dx / dist, ny = dy / dist;
+          nodes[i].x -= nx * push;
+          nodes[i].y -= ny * push;
+          nodes[j].x += nx * push;
+          nodes[j].y += ny * push;
+        }
+      }
+    }
+  }
+  jitteredPositions = {};
+  nodes.forEach(n => { jitteredPositions[n.id] = [n.x, n.y]; });
+}
 
 // ── Projection ────────────────────────────────────────────
 function buildProjection(w, h, features) {
@@ -357,7 +402,7 @@ function drawArcs(school, year) {
   let recruits = allRecruits.filter(r => r.school_id === school.id);
   if (year !== "all") recruits = recruits.filter(r => r.year === +year);
 
-  const schoolPt = projection([school.lng, school.lat]);
+  const schoolPt = jitteredPositions[school.id] ?? projection([school.lng, school.lat]);
   if (!schoolPt) {
     recruitCount.textContent = "School location unavailable";
     return;
@@ -398,7 +443,7 @@ function drawArcs(school, year) {
       .attr("class", "recruit-dot")
       .attr("cx", homePt[0])
       .attr("cy", homePt[1])
-      .attr("r", 3.5)
+      .attr("r", recruitDotRadius())
       .attr("fill", color)
       .on("mousemove", (ev) => { showTooltip(ev, r); moveTooltip(ev); })
       .on("touchmove", (ev) => { showTooltip(ev, r); moveTooltip(ev); ev.preventDefault(); })
@@ -409,7 +454,8 @@ function drawArcs(school, year) {
 // ── Select school ─────────────────────────────────────────
 function selectSchool(school) {
   selectedSchool = school;
-  schoolLayer.selectAll("circle.school-dot")
+  schoolLayer.selectAll("g.school-group")
+    .select("circle.school-dot")
     .classed("selected", d => d.id === school.id);
   drawArcs(school, selectedYear);
 }
@@ -454,10 +500,17 @@ function handleResize() {
   projection = buildProjection(w, h, stateFeatures);
   pathGen = d3.geoPath().projection(projection);
 
+  computeJitteredPositions(schoolsList);
+
   baseLayer.selectAll("path.state").attr("d", pathGen);
-  schoolLayer.selectAll("circle.school-dot")
-    .attr("cx", d => (projection([d.lng, d.lat]) ?? [-999])[0])
-    .attr("cy", d => (projection([d.lng, d.lat]) ?? [0, -999])[1]);
+
+  schoolLayer.selectAll("g.school-group")
+    .attr("transform", d => {
+      const pt = jitteredPositions[d.id] ?? [-999, -999];
+      return `translate(${pt[0]},${pt[1]})`;
+    });
+  schoolLayer.selectAll("g.school-group circle.school-dot").attr("r", dotRadius());
+  schoolLayer.selectAll("g.school-group circle.school-hit").attr("r", hitRadius());
 
   if (selectedSchool) drawArcs(selectedSchool, selectedYear);
 }
@@ -470,6 +523,7 @@ Promise.all([
   d3.json(`${CDN}/us-states.topojson`),
 ]).then(([schools, recruits, us]) => {
   allRecruits = recruits;
+  schoolsList = schools;
   schools.forEach(s => { schoolMap[s.id] = s; });
 
   stateFeatures = topojson.feature(us, us.objects.states);
@@ -478,6 +532,8 @@ Promise.all([
   projection = buildProjection(w, h, stateFeatures);
   pathGen = d3.geoPath().projection(projection);
 
+  computeJitteredPositions(schools);
+
   // States
   baseLayer.selectAll("path.state")
     .data(stateFeatures.features)
@@ -485,20 +541,31 @@ Promise.all([
     .attr("class", "state")
     .attr("d", pathGen);
 
-  // School dots
-  schoolLayer.selectAll("circle.school-dot")
+  // School dots — each school is a <g> with a visible dot + larger invisible hit target
+  const schoolGroups = schoolLayer.selectAll("g.school-group")
     .data(schools)
-    .join("circle")
-    .attr("class", "school-dot")
-    .attr("r", 5)
-    .attr("cx", d => (projection([d.lng, d.lat]) ?? [-999])[0])
-    .attr("cy", d => (projection([d.lng, d.lat]) ?? [0, -999])[1])
+    .join("g")
+    .attr("class", "school-group")
+    .attr("transform", d => {
+      const pt = jitteredPositions[d.id] ?? [-999, -999];
+      return `translate(${pt[0]},${pt[1]})`;
+    })
     .on("click", (ev, d) => {
       schoolSearch.value = d.name;
       schoolListEl.style.display = "none";
       selectSchool(d);
-    })
-    .append("title").text(d => d.name);
+    });
+
+  schoolGroups.append("circle")
+    .attr("class", "school-dot")
+    .attr("r", dotRadius());
+
+  schoolGroups.append("circle")
+    .attr("class", "school-hit")
+    .attr("r", hitRadius())
+    .attr("fill", "transparent");
+
+  schoolGroups.append("title").text(d => d.name);
 
   // Year select
   const years = [...new Set(recruits.map(r => r.year))].sort((a, b) => b - a);
