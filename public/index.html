@@ -503,6 +503,102 @@
     #feedback-status.err { color: #ff7b72; }
 
     /* ── Mobile ───────────────────────────────────────────── */
+    /* ── About modal ─────────────────────────────────────── */
+    #about-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #about-overlay.open { display: flex; }
+    #about-modal {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #about-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #21262d;
+      flex-shrink: 0;
+    }
+    #about-modal-header h2 { font-size: 16px; font-weight: 700; color: #f0f6fc; }
+    #about-modal-body {
+      overflow-y: auto;
+      padding: 20px;
+      color: #c9d1d9;
+      font-size: 14px;
+      line-height: 1.65;
+      -webkit-overflow-scrolling: touch;
+    }
+    #about-modal-body h3 { color: #f0f6fc; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin: 20px 0 8px; }
+    #about-modal-body h3:first-child { margin-top: 0; }
+    #about-modal-body p { margin-bottom: 10px; }
+    #about-modal-body a { color: #58a6ff; text-decoration: none; }
+    #about-modal-body a:hover { text-decoration: underline; }
+    #about-close {
+      background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; padding: 2px 6px; line-height: 1;
+    }
+    #about-close:hover { color: #f0f6fc; }
+    #about-btn {
+      background: none;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #about-btn:hover { color: #f0f6fc; border-color: #8b949e; }
+
+    /* ── First-visit hint ────────────────────────────────── */
+    #welcome-tip {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.97);
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 12px 18px;
+      color: #c9d1d9;
+      font-size: 13px;
+      line-height: 1.5;
+      max-width: 320px;
+      width: calc(100% - 32px);
+      text-align: center;
+      z-index: 50;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+      transition: opacity 0.4s;
+    }
+    #welcome-tip.hidden { opacity: 0; pointer-events: none; }
+    #welcome-tip strong { color: #f0f6fc; display: block; margin-bottom: 4px; font-size: 14px; }
+    #welcome-tip-dismiss {
+      display: inline-block;
+      margin-top: 10px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      border-radius: 6px;
+      padding: 4px 14px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #welcome-tip-dismiss:hover { color: #f0f6fc; }
+
     @media (max-width: 600px) {
       #app-title { display: none; }
       .search-wrap { max-width: none; flex: 1; }
@@ -534,6 +630,7 @@
   <select id="year-select">
     <option value="all">All Years</option>
   </select>
+  <button id="about-btn">About</button>
 </div>
 
 <div id="school-bar">
@@ -586,6 +683,40 @@
   <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div><span>3★</span></div>
   <div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div><span>2★</span></div>
   <span id="hint">Click a school dot or search to explore</span>
+</div>
+
+<!-- About modal -->
+<div id="about-overlay">
+  <div id="about-modal">
+    <div id="about-modal-header">
+      <h2>About this tool</h2>
+      <button id="about-close" aria-label="Close">✕</button>
+    </div>
+    <div id="about-modal-body">
+      <h3>What is this?</h3>
+      <p>CFB Recruiting Origins is an interactive map that shows where college football recruits come from. Pick any FBS program and a class year to see arcs drawn from each recruit's hometown to the school — instantly revealing how wide (or narrow) a program's geographic reach really is.</p>
+
+      <h3>Inspiration</h3>
+      <p>Recruiting geography is one of the most underappreciated dimensions of college football. The SEC sweeps the Southeast. The Big Ten locks down the Midwest. But plenty of programs punch outside their footprint — or struggle to recruit their own backyard. This tool lets you explore those patterns school by school, class by class.</p>
+
+      <h3>The data</h3>
+      <p>Recruiting data is sourced from the <a href="https://collegefootballdata.com" target="_blank" rel="noopener">College Football Data API</a> (CFBD), which aggregates historical recruiting records going back to 2000. Hometown coordinates were geocoded using the <a href="https://simplemaps.com/data/us-cities" target="_blank" rel="noopener">simplemaps US Cities database</a>. The data covers FBS programs and includes star ratings where available.</p>
+
+      <h3>Blog post</h3>
+      <p>A full write-up on how this was built — data pipeline, D3.js arc visualization, and hosting on GitHub Pages — is coming soon on <a href="https://www.palmercjones.com" target="_blank" rel="noopener">palmercjones.com</a>.</p>
+
+      <h3>About the author</h3>
+      <p>Built by <a href="https://www.palmercjones.com" target="_blank" rel="noopener">Palmer Jones</a> — sports analytics, data viz, maps, and the occasional Lord of the Rings tangent. If you find a data error or have a feature idea, use the feedback button on the map.</p>
+    </div>
+  </div>
+</div>
+
+<!-- First-visit welcome tip -->
+<div id="welcome-tip">
+  <strong>CFB Recruiting Origins</strong>
+  Tap any school dot on the map to see where its recruits come from. Use the search or year filter to dig deeper.
+  <br>
+  <button id="welcome-tip-dismiss">Got it</button>
 </div>
 
 <script>
@@ -1040,6 +1171,32 @@ const FEEDBACK_WORKER = "https://cfb-feedback-worker.palmer-da0.workers.dev";
 })();
 
 // ── Bootstrap ─────────────────────────────────────────────
+// ── About modal ───────────────────────────────────────────
+(function initAbout() {
+  const overlay = document.getElementById("about-overlay");
+  document.getElementById("about-btn").addEventListener("click", () => overlay.classList.add("open"));
+  document.getElementById("about-close").addEventListener("click", () => overlay.classList.remove("open"));
+  overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.classList.remove("open"); });
+})();
+
+// ── First-visit welcome tip ───────────────────────────────
+(function initWelcomeTip() {
+  const tip = document.getElementById("welcome-tip");
+  if (localStorage.getItem("cfb-welcome-seen")) { tip.remove(); return; }
+  document.getElementById("welcome-tip-dismiss").addEventListener("click", () => {
+    tip.classList.add("hidden");
+    localStorage.setItem("cfb-welcome-seen", "1");
+    setTimeout(() => tip.remove(), 400);
+  });
+  // Auto-dismiss after 12 seconds if not clicked
+  setTimeout(() => {
+    if (!tip.isConnected) return;
+    tip.classList.add("hidden");
+    localStorage.setItem("cfb-welcome-seen", "1");
+    setTimeout(() => tip.remove(), 400);
+  }, 12000);
+})();
+
 const CDN = "https://cdn.jsdelivr.net/gh/palmerjones0/cfb-recruiting-viz@main/public";
 Promise.all([
   d3.json(`${CDN}/schools.json`),
@@ -1091,7 +1248,7 @@ Promise.all([
 
   schoolGroups.append("title").text(d => d.name);
 
-  // Year select
+  // Year select — default to most recent year in data
   const years = [...new Set(recruits.map(r => r.year))].sort((a, b) => b - a);
   years.forEach(y => {
     const opt = document.createElement("option");
@@ -1099,6 +1256,10 @@ Promise.all([
     opt.textContent = `${y} Class`;
     yearSelect.appendChild(opt);
   });
+  if (years.length) {
+    selectedYear = years[0];
+    yearSelect.value = years[0];
+  }
 
   yearSelect.addEventListener("change", () => {
     selectedYear = yearSelect.value;
