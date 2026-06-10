@@ -9,7 +9,7 @@ def load_raw_schools():
 
 def load_raw_recruits():
     all_recruits = []
-    for year in range(2015, 2025):
+    for year in range(2015, 2029):
         path = f"data/raw/recruits_{year}.json"
         if not os.path.exists(path):
             print(f"Warning: {path} not found, skipping")
@@ -17,6 +17,13 @@ def load_raw_recruits():
         with open(path) as f:
             all_recruits.extend(json.load(f))
     return all_recruits
+
+
+# Manual coordinates for schools missing them in the CFBD API
+LOCATION_OVERRIDES = {
+    "Northwestern": (42.0587, -87.6777),       # Ryan Field, Evanston, IL
+    "Florida International": (25.7562, -80.3742),  # FIU Stadium, Miami, FL
+}
 
 
 def build_schools_json(raw_teams):
@@ -28,6 +35,9 @@ def build_schools_json(raw_teams):
         loc = t.get("location") or {}
         lat = loc.get("latitude")
         lng = loc.get("longitude")
+        if (lat is None or lng is None) and school_name in LOCATION_OVERRIDES:
+            lat, lng = LOCATION_OVERRIDES[school_name]
+            print(f"Info: using override coordinates for {school_name}")
         if lat is None or lng is None:
             print(f"Warning: no location for {school_name}, skipping")
             continue

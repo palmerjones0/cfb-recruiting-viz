@@ -189,13 +189,12 @@
 
     .recruit-arc {
       fill: none;
-      stroke-width: 1.2;
       opacity: 0.55;
       pointer-events: stroke;
       cursor: pointer;
     }
 
-    .recruit-arc:hover { opacity: 1; stroke-width: 2; }
+    .recruit-arc:hover { opacity: 1; stroke-width: 2 !important; }
 
     .recruit-dot { opacity: 0.65; cursor: pointer; }
 
@@ -677,6 +676,10 @@
   <div id="players-list"></div>
 </div>
 
+<div id="future-year-notice" style="display:none;position:fixed;top:92px;left:0;right:0;background:#3a2000;border-bottom:1px solid #6e3d00;color:#e3a000;font-size:11px;text-align:center;padding:4px 12px;z-index:18;">
+  Commits as of today — this class has not yet signed.
+</div>
+
 <div id="info-bar">
   <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div><span>5★</span></div>
   <div class="legend-item"><div class="legend-dot" style="background:#388bfd"></div><span>4★</span></div>
@@ -706,7 +709,7 @@
       <p>A full write-up on how this was built — data pipeline, D3.js arc visualization, and hosting on GitHub Pages — is coming soon on <a href="https://www.palmercjones.com" target="_blank" rel="noopener">palmercjones.com</a>.</p>
 
       <h3>About the author</h3>
-      <p>Built by <a href="https://www.palmercjones.com" target="_blank" rel="noopener">Palmer Jones</a> — sports analytics, data viz, maps, and the occasional Lord of the Rings tangent. If you find a data error or have a feature idea, use the feedback button on the map.</p>
+      <p>Built by <a href="https://www.palmercjones.com" target="_blank" rel="noopener">Palmer Jones</a> — sports analytics, data viz, and maps. If you find a data error or have a feature idea, use the feedback button on the map.</p>
     </div>
   </div>
 </div>
@@ -985,6 +988,9 @@ function drawArcs(school, year) {
   const arcGroup = arcLayer.append("g");
   const dotGroup = arcLayer.append("g");
 
+  // Arc width: 20% thinner baseline (1.0 vs old 1.2), scales down with large counts
+  const arcW = Math.max(0.3, 1.0 / Math.sqrt(Math.max(recruits.length, 15) / 15));
+
   recruits.forEach((r, i) => {
     const homePt = projection([r.lng, r.lat]);
     if (!homePt) return;
@@ -996,6 +1002,7 @@ function drawArcs(school, year) {
       .attr("class", "recruit-arc")
       .attr("d", arcPath(homePt[0], homePt[1], schoolPt[0], schoolPt[1]))
       .attr("stroke", color)
+      .attr("stroke-width", arcW)
       .on("mousemove", (ev) => { showTooltip(ev, r); moveTooltip(ev); })
       .on("touchmove", (ev) => { showTooltip(ev, r); moveTooltip(ev); ev.preventDefault(); })
       .on("mouseleave touchend", hideTooltip);
@@ -1248,6 +1255,16 @@ Promise.all([
 
   schoolGroups.append("title").text(d => d.name);
 
+  // Signing day for a class year is ~Dec of the prior year / Feb of that year.
+  // Classes through 2025 have fully signed; 2026+ are still-open commit lists.
+  const LAST_SIGNED_YEAR = 2025;
+  const futureNotice = document.getElementById("future-year-notice");
+
+  function updateFutureNotice(year) {
+    const y = parseInt(year, 10);
+    futureNotice.style.display = (!isNaN(y) && y > LAST_SIGNED_YEAR) ? "block" : "none";
+  }
+
   // Year select — default to most recent year in data
   const years = [...new Set(recruits.map(r => r.year))].sort((a, b) => b - a);
   years.forEach(y => {
@@ -1259,10 +1276,12 @@ Promise.all([
   if (years.length) {
     selectedYear = years[0];
     yearSelect.value = years[0];
+    updateFutureNotice(years[0]);
   }
 
   yearSelect.addEventListener("change", () => {
     selectedYear = yearSelect.value;
+    updateFutureNotice(selectedYear);
     if (selectedSchool) drawArcs(selectedSchool, selectedYear);
   });
 

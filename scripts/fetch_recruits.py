@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_URL = "https://api.collegefootballdata.com"
-YEARS = range(2015, 2025)
+YEARS = range(2015, 2029)
 
 _api_key = os.environ.get("CFBD_API_KEY")
 if not _api_key:
