@@ -792,7 +792,7 @@ function hideTooltip() {
 function zoomToFitRecruits(school, recruits) {
   const [w, h] = getSize();
   // Extra top padding clears the 40px school-bar overlay; sides/bottom are tighter.
-  const padTop = 50, padBottom = 60, padSide = 60;
+  const padTop = 98, padBottom = 10, padSide = 10;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
 
   function expand(pt) {
@@ -811,7 +811,7 @@ function zoomToFitRecruits(school, recruits) {
   const scale = Math.min(
     (w - padSide * 2) / Math.max(x1 - x0, 1),
     (h - padTop - padBottom) / Math.max(y1 - y0, 1),
-    8
+    16
   );
   // Center horizontally; shift content down so the top padTop clears the school-bar.
   const tx = w / 2 - scale * (x0 + x1) / 2;
